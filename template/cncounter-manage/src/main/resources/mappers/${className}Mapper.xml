@@ -1,0 +1,87 @@
+<#assign className = table.className>
+<#assign classNameFirstLower = table.classNameFirstLower>   
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<#macro mapperEl value>${r"#{"}${value}}</#macro>
+<mapper namespace="${basepackage}.${subpackage}.mapper.${className}Mapper">
+
+	<resultMap id="BaseResultMap" type="${basepackage}.${subpackage}.model.${className}Model">
+        <#list table.columns as column>
+		<#if column.pk>
+			<id property="${column.columnNameLower}" column="${column.sqlName}" jdbcType="${column.jdbcSqlTypeName}"/>
+		</#if>
+		<#if !column.pk>
+			<result property="${column.columnNameLower}" column="${column.sqlName}" jdbcType="${column.jdbcSqlTypeName}"/>
+		</#if>
+		</#list>
+	</resultMap>
+	
+	<!-- 用于select查询公用抽取的列 -->
+	<sql id="Base_Column_List">
+		<#list table.columns as column>${column.sqlName}<#if column_has_next>,</#if></#list>
+	</sql>
+
+	<select id="listPage" parameterType="${basepackage}.${subpackage}.dto.${className}ParamsDto" resultMap="BaseResultMap">
+		select
+			<include refid="Base_Column_List" />
+		from ${table.sqlName}
+		where deleted = 0
+		<#list table.columns as column>
+			<#if column.columnNameFirstLower != "deleted">
+			<if test="${column.columnNameFirstLower} != null">
+				and ${column.sqlName} = ${r'#{'}${column.columnNameFirstLower}, jdbcType=${column.jdbcSqlTypeName} ${r'}'}
+			</if>
+			</#if>
+		</#list>
+	</select>
+
+	<insert id="insert" useGeneratedKeys="true" keyProperty="id"
+		parameterType="${basepackage}.${subpackage}.model.${className}Model">
+		insert into ${table.sqlName}
+		<trim prefix="(" suffix=")" suffixOverrides=",">
+		<#list table.columns as column>
+			<if test="${column.columnNameFirstLower} != null">
+				${column.sqlName},
+			</if>
+        </#list>
+		</trim>
+		<trim prefix="values (" suffix=")" suffixOverrides=",">
+	    <#list table.columns as column>
+			<if test="${column.columnNameFirstLower} != null">
+				${r'#{'}${column.columnNameFirstLower}, jdbcType=${column.jdbcSqlTypeName}${r'},'}
+			</if>
+        </#list>
+		</trim>
+	</insert>
+
+	<update id="updateBySelective" parameterType="${basepackage}.${subpackage}.model.${className}Model">
+	update ${table.sqlName}
+	<set>
+		<#list table.notPkColumns as column>
+		<if test="${column.columnNameFirstLower} != null">
+			${column.sqlName} = ${r'#{'}${column.columnNameFirstLower}, jdbcType=${column.jdbcSqlTypeName} ${r'}'},
+		</if>
+	</#list>
+	</set>
+		where
+		id = <@mapperEl "id"/>
+	</update>
+
+	<select id="selectById" parameterType="int" resultMap="BaseResultMap">
+		select
+		<include refid="Base_Column_List" />
+		from
+		${table.sqlName}
+		where
+		id = <@mapperEl "id"/> and deleted = 0
+	</select>
+
+	<update id="deleteById" parameterType="int">
+		update ${table.sqlName}
+		<set>
+			deleted = 1
+		</set>
+		where
+		id = <@mapperEl "id"/>
+	</update>
+</mapper>
